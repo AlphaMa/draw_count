@@ -1,0 +1,789 @@
+<html>
+<head>
+<style type="text/css">
+span.H{color:#00CC33}
+span.b{color:#993399}
+span.j{color:#009999}
+span.bh{color:#996633}
+span.red{color:#ff0000}
+a.visit:visited {color: #000066}
+a.visit:link {color: #000066}
+a.visit:hover {background: #F0F8FF}
+</style>
+<script type="text/javascript">
+var vkey1count = new Number()//KEY1牌数量
+var vkey2count = new Number()//KEY2牌数量
+var vPassCardCount = new Number()//过牌数量
+var firstCardCount = new Number
+var totalComSize = new Number()
+var hit = new Number()
+var hitRate = new Number()
+var fs = new Number()
+var saveCardCount = new Number()
+var isCountKey2 = new Number()
+var dimStep = new Number()
+var tmp1 = new Number()
+var tmp2 = new Number()
+var isShowNull = new Number()
+function calc_hit(){
+	var i = new Number()
+	var j = new Number()
+	var k = new Number()
+	var tmp3 = new Number()
+	var tmp4 = new Number()
+	isShowNull = 1
+	vkey1count = parseInt(document.getElementById('v_key_1_count').value)
+	if(vkey1count < 1){
+		alert("计算失败:KEY1牌数量不要低于1")
+		return
+	}
+	vkey2count = parseInt(document.getElementById('v_key_2_count').value)
+	if(vkey2count < 0){
+		alert("计算失败:KEY2牌数量不要低于0")
+		return
+	}
+	vPassCardCount = parseFloat(document.getElementById('v_pass_card_count').value)
+	firstCardType = parseFloat(document.getElementById('select_isFirst').value)
+	if(vkey1count + vkey2count + vPassCardCount > 30){
+		alert("计算失败:牌量总和不要超过30")
+		return
+	}
+	if(firstCardType >= 2){
+		firstCardCount = 3
+		firstCardType = 2//循环2次, firstCardCount分别为3, 4
+	}else{
+		firstCardCount = firstCardType + 3
+		firstCardType = 1//只循环1次
+	}
+	dimStep = parseFloat(document.getElementById('select_step').value)
+	hitRate = 0
+	tmp1 = 0
+	for(fs = 0; fs < firstCardType; fs++){//先3再4
+		totalComSize = calcCombination(30, firstCardCount)
+		curStep = 1
+		//■■■step1.起手firstCardCount张牌
+		for(i = 1; i < vkey1count + 1; i++){
+			//拿到key1 x i的概率
+			if(vkey2count > 0){//有key2
+				for(j = 1; j < vkey2count + 1; j++){
+					//拿到key1 x i, key2 x j的概率
+					if(j + i <= firstCardCount && 30 - vkey1count - vkey2count >= firstCardCount - i - j){
+						hitRate = hitRate + (calcCombination(vkey1count, i)*calcCombination(vkey2count, j)*calcCombination(30 - vkey1count - vkey2count, firstCardCount - i - j))/totalComSize
+					}
+				}
+			}else{//没有key2
+				if(i <= firstCardCount && 30 - vkey1count >= firstCardCount - i){
+					hitRate = hitRate + (calcCombination(vkey1count, i)*calcCombination(30 - vkey1count, firstCardCount - i))/totalComSize
+				}
+			}
+		}
+		//■■■step2.起手未出现KEY, 换牌
+		curStep++
+		if(curStep > dimStep){
+			firstCardCount = firstCardCount + 1//3变成4
+			continue
+		}
+		for(i = 1; i < Math.min(vkey1count, firstCardCount) + 1; i++){
+			//[i]■■
+			//tmp1为step1抽中i并且vPassCardCount为0,key2未抽中的概率
+			if(vPassCardCount == 0){//保留1张key1 换掉firstCardCount - 1张
+				tmp1 = 0
+				if(30 - vkey1count - vkey2count >= firstCardCount - i){
+					tmp1 = (calcCombination(vkey1count, i)*calcCombination(vkey2count, 0)*calcCombination(30 - vkey1count - vkey2count, firstCardCount - i))/totalComSize
+				}
+				tmp2 = 0
+				//tmp2为在tmp1的情况下,ban牌抽中key2的概率
+				//|        firstCardCount      |
+				//|   1   | firstCardCount - 1 |
+				//新算法:ban掉的牌不会再重新上来,从新上来的数量会从30-firstCardCount中选firstCardCount-1张
+				for(j = 1; j < vkey2count + 1; j++){//拿到j的概率
+					if(j <= firstCardCount - 1 && 30 - firstCardCount - vkey2count >= firstCardCount - 1 - j){
+						//tmp2 = tmp2 + (calcCombination(firstCardCount - i, j)*calcArrangement(vkey2count, j)*calcArrangement(30 - i - vkey2count, firstCardCount - i - j))/calcArrangement(30 - i, firstCardCount - i)
+						//tmp2 = tmp2 + (calcCombination(vkey2count, j)*calcCombination(30 - 1 - vkey2count, firstCardCount - 1 - j))/calcCombination(30 - 1, firstCardCount - 1)
+						//|             30 - firstCardCount             |
+						//| key2Count | 30 - firstCardCount - key2Count |
+						//选
+						//|             firstCardCount - 1             |
+						//|     j     |     firstCardCount - 1 - j     |
+						tmp2 = tmp2 + (calcCombination(vkey2count, j)*calcCombination(30 - firstCardCount - vkey2count, firstCardCount - 1 - j))/calcCombination(30 - firstCardCount, firstCardCount - 1)
+					}
+				}
+				hitRate = hitRate + tmp1 * tmp2
+				calcNextStepSingle(tmp1*(1 - tmp2), 30 - firstCardCount, vkey2count, curStep)
+			}else{
+				for(k = 0; k < vPassCardCount + 1; k++){
+					//[i, k]■■
+					//tmp1为step1抽中i+k的概率
+					tmp1 = 0
+					if(i + k <= firstCardCount && 30 - vkey1count - vPassCardCount - vkey2count >= firstCardCount - i - k){
+						tmp1 = (calcCombination(vkey1count, i)*calcCombination(vPassCardCount, k)*calcCombination(vkey2count, 0)*calcCombination(30 - vkey1count - vPassCardCount - vkey2count, firstCardCount - i - k))/totalComSize
+					}
+					tmp2 = 0
+					//|        firstCardCount      |
+					//| 1 | k | firstCardCount-1-k |
+					for(j = 1; j < vkey2count + 1; j++){//抽中j张的概率,求和为抽中key2的概率
+						if(1 + j + k <= firstCardCount && 30 - firstCardCount - vkey2count >= firstCardCount - 1 - k - j){
+							//tmp2 = tmp2 + calcCombination(vkey2count, j)*calcCombination(30 - i - k - vkey2count, firstCardCount - i - k - j)/calcCombination(30 - i - k, firstCardCount - i - k)
+							//tmp2 = tmp2 + (calcCombination(firstCardCount - i - k, j)*calcArrangement(vkey2count, j)*calcArrangement(30 - i - k - vkey2count, firstCardCount - i - k - j))/calcArrangement(30 - i - k, firstCardCount - i - k)
+							//tmp2 = tmp2 + (calcCombination(vkey2count, j)*calcCombination(30 - 1 - k - vkey2count, firstCardCount - 1 - k - j))/calcCombination(30 - 1 - k, firstCardCount - 1 - k)
+							//|             30 - firstCardCount             |
+							//| key2Count | 30 - firstCardCount - key2Count |
+							//选
+							//|            firstCardCount - 1 - k           |
+							//|     j     |    firstCardCount - 1 - k - j   |							
+							tmp2 = tmp2 + (calcCombination(vkey2count, j)*calcCombination(30 - firstCardCount - vkey2count, firstCardCount - 1 - k - j))/calcCombination(30 - firstCardCount, firstCardCount - 1 - k)
+							
+							//alert("k=" + k + " i=" + i + " j=" + j + " \ntmp1=" + tmp1 + " \ntmp2=" + tmp2 + " \nhitRate=" + hitRate)
+						}
+					}
+					//step1抽中i+k的情况下,换牌抽中key2的概率
+					hitRate = hitRate + tmp1 * tmp2
+					//if(tmp1 > 0 && tmp2 > 0 || true){
+					//	alert("tmp1=" + tmp1 + "\ntmp2=" + tmp2)
+					//}
+					calcNextStepSingle(tmp1*(1 - tmp2), 30 - firstCardCount, vkey2count, curStep)
+				}
+			}
+		}
+		for(j = 1; j < Math.min(vkey2count, firstCardCount) + 1; j++){
+			//[j]■■
+			//tmp1为step1抽中j并且vPassCardCount为0,key1未抽中的概率
+			if(vPassCardCount == 0){
+				tmp1 = 0
+				if(30 - vkey2count - vkey1count >= firstCardCount - j){
+					tmp1 = (calcCombination(vkey2count, j)*calcCombination(vPassCardCount, 0)*calcCombination(vkey1count, 0)*calcCombination(30 - vkey2count - vkey1count, firstCardCount - j))/totalComSize
+				}
+				tmp2 = 0
+				//tmp2为tmp1的情况下,抽中key2的概率
+				//|        firstCardCount      |
+				//|   1   | firstCardCount - 1 |
+				for(i = 1; i < vkey1count + 1; i++){
+					if(i <= firstCardCount - 1 && 30 - firstCardCount - vkey1count >= firstCardCount - 1 - i){
+						//tmp2 = tmp2 + (calcCombination(firstCardCount - j, i)*calcArrangement(vkey1count, i)*(30 - j - vkey1count, firstCardCount - j - i))/calcArrangement(30 - j, firstCardCount - j)
+						//|             30 - firstCardCount             |
+						//| key1Count | 30 - firstCardCount - key1Count |
+						//选
+						//|             firstCardCount - 1             |
+						//|     i     |     firstCardCount - 1 - i     |
+						tmp2 = tmp2 + (calcCombination(vkey1count, i)*calcCombination(30 - firstCardCount - vkey1count, firstCardCount - 1 - i))/calcCombination(30 - firstCardCount, firstCardCount - 1)
+					}
+				}
+				hitRate = hitRate + tmp1 * tmp2
+				calcNextStepSingle(tmp1*(1 - tmp2), 30 - firstCardCount, vkey1count, curStep)
+			}else{
+				for(k = 0; k < vPassCardCount + 1; k++){
+					//[j, k]■■
+					//tmp1为step1抽中j+k的概率
+					tmp1 = 0
+					if(j + k <= firstCardCount && 30 - vkey2count - vPassCardCount - vkey1count >= firstCardCount - j - k){
+						tmp1 = (calcCombination(vkey2count, j)*calcCombination(vPassCardCount, k)*calcCombination(vkey1count, 0)*calcCombination(30 - vkey2count - vPassCardCount - vkey1count, firstCardCount - j - k))/totalComSize
+					}
+					tmp2 = 0
+					//|        firstCardCount      |
+					//| 1 | k | firstCardCount-1-k |
+					for(i = 1; i < vkey2count + 1; i++){//抽中i张的概率,求和为抽中key1的概率
+						if(1 + i + k <= firstCardCount && 30 - firstCardCount - vkey1count >= firstCardCount - 1 - k - i){
+							//tmp2 = tmp2 + (calcCombination(firstCardCount - j - k, i)*calcArrangement(vkey1count, i)*calcArrangement(30 - j - k - vkey1count, firstCardCount - j - k - i))/calcArrangement(30 - j - k, firstCardCount - j - k)
+							//tmp2 = tmp2 + (calcCombination(vkey1count, i)*calcCombination(30 - 1 - k - vkey1count, firstCardCount - 1 - k - i))/calcCombination(30 - 1 - k, firstCardCount - 1 - k)
+							//|             30 - firstCardCount             |
+							//| key1Count | 30 - firstCardCount - key1Count |
+							//选
+							//|            firstCardCount - 1 - k           |
+							//|     i     |    firstCardCount - 1 - k - i   |
+							tmp2 = tmp2 + (calcCombination(vkey1count, i)*calcCombination(30 - firstCardCount - vkey1count, firstCardCount - 1 - k - i))/calcCombination(30 - firstCardCount, firstCardCount - 1 - k)
+						}
+					}
+					//step1抽中j+k的情况下,换牌抽中key1的概率
+					hitRate = hitRate + tmp1 * tmp2
+					calcNextStepSingle(tmp1*(1 - tmp2), 30 - firstCardCount, vkey1count, curStep)
+				}
+			}
+		}
+		if(vPassCardCount == 0){
+			//[0]■■
+			//tmp1为未抽到i, j并且vPassCardCount为0的概率
+			tmp1 = 0
+			if(30 - vkey2count - vkey1count >= firstCardCount){
+				tmp1 = (calcCombination(vkey1count, 0)*calcCombination(vkey2count, 0)*calcCombination(30 - vkey2count - vkey1count, firstCardCount))/totalComSize
+			}
+			tmp2 = 0
+			tmp3 = 0
+			tmp4 = 0
+			//-----
+			/*--------
+			if(vkey2count > 0){
+				//tmpfull为错位全排列
+				tmpfull = calcPickHit(30, firstCardCount)
+				//tmpfull为错位,同时有k1ke2的排列
+				tmpk1k2 = calcMixWithTwoKeyHit(30, firstCardCount, vkey1count, vkey2count)
+				//错位,包含k1的,k2无视
+				tmpk1 = calcMixWithKeyHit(30, firstCardCount, vkey1count)
+				//错位,包含k2的,k1无视
+				tmpk2 = calcMixWithKeyHit(30, firstCardCount, vkey2count)
+				//-------------
+				//只拿到一个key,下一步寻找另一个key
+				//拿到k1,并且没有拿到k2的概率
+				tmp3 = (tmpk1 - tmpk1k2)/tmpfull
+				tmp4 = tmp4 + tmp3
+				calcNextStepSingle(tmp1*(tmp3), 30 - firstCardCount, vkey2count, curStep)
+				//拿到k2,并且没有拿到k1的概率
+				tmp3 = (tmpk2 - tmpk1k2)/tmpfull
+				tmp4 = tmp4 + tmp3
+				calcNextStepSingle(tmp1*(tmp3), 30 - firstCardCount, vkey1count, curStep)
+				//-------------
+				//拿到两个key
+				tmp2 = tmpk1k2/tmpfull
+				tmp4 = tmp4 + tmp2
+				hitRate = hitRate + tmp1 * tmp2
+				calcNextStepDouble(tmp1*(1 - tmp4), 30 - firstCardCount, vkey1count, vkey2count, curStep)
+			}else{
+				//tmpfull为错位全排列
+				tmpfull = calcPickHit(30, firstCardCount)
+				//错位,包含k1的,k2无视
+				tmpk1 = calcMixWithKeyHit(30, firstCardCount, vkey1count)
+				tmp2 = tmpk1/tmpfull
+				hitRate = hitRate + tmp1 * tmp2
+				calcNextStepSingle(tmp1*(1 - tmp2), 30 - firstCardCount, vkey1count, curStep)
+			}
+			--------*/
+			//-----
+			for(i = 0; i < vkey1count + 1; i++){
+				//拿到key1 x i的概率
+				if(vkey2count > 0){//有key2
+					for(j = 0; j < vkey2count + 1; j++){
+						//拿到key1 x i, key2 x j的概率
+						if(j + i <= firstCardCount && 30 - firstCardCount - vkey1count - vkey2count >= firstCardCount - i - j){
+							//alert("k=" + k + " i=" + i + " j=" + j)
+							//|                           30 - firstCardCount                       |
+							//| key1Count | key2Count | 30 - firstCardCount - key1Count - key2Count |
+							//选
+							//|                             firstCardCount                          |
+							//|     i     |     j     |            firstCardCount - i - j           |
+							tmp3 = (calcCombination(vkey1count, i)*calcCombination(vkey2count, j)*calcCombination(30 - firstCardCount - vkey1count - vkey2count, firstCardCount - i - j))/calcCombination(30 - firstCardCount, firstCardCount)
+							if(i > 0 && j > 0){
+								tmp2 = tmp2 + tmp3
+								tmp4 = tmp4 + tmp3
+							}else if(i > 0){
+								tmp4 = tmp4 + tmp3
+								calcNextStepSingle(tmp1*(tmp3), 30 - firstCardCount, vkey2count, curStep)
+							}else if(j > 0){
+								tmp4 = tmp4 + tmp3
+								calcNextStepSingle(tmp1*(tmp3), 30 - firstCardCount, vkey1count, curStep)
+							}
+						}
+					}
+				}else{//没有key2
+					//|                    30 - firstCardCount                  |
+					//| key1Count     |     30 - firstCardCount - key1Count     |
+					//选
+					//|                     firstCardCount                      |
+					//|       i       |            firstCardCount - i           |
+					if(i <= firstCardCount && 30 - firstCardCount - vkey1count >= firstCardCount - i && i > 0){
+						tmp2 = tmp2 + (calcCombination(vkey1count, i)*calcCombination(30 - firstCardCount - vkey1count, firstCardCount - i))/calcCombination(30 - firstCardCount, firstCardCount)
+					}
+				}
+			}
+			hitRate = hitRate + tmp1 * tmp2
+			if(vkey2count > 0){
+				//1 - tmp4:tmp1后换牌没有拿到key牌的概率
+				calcNextStepDouble(tmp1*(1 - tmp4), 30 - firstCardCount, vkey1count, vkey2count, curStep)
+			}else{
+				calcNextStepSingle(tmp1*(1 - tmp2), 30 - firstCardCount, vkey1count, curStep)
+			}
+		}else{
+			for(k = 0; k < Math.min(vPassCardCount, firstCardCount) + 1; k++){
+				//[k]
+				//tmp1为step1抽中k并且未抽到i, j的概率
+				tmp1 = 0
+				if(30 - vPassCardCount - vkey2count - vkey1count >= firstCardCount - k){
+					tmp1 = (calcCombination(vPassCardCount, k)*calcCombination(vkey1count, 0)*calcCombination(vkey2count, 0)*calcCombination(30 - vPassCardCount - vkey1count - vkey2count, firstCardCount - k))/totalComSize
+				}
+				tmp2 = 0
+				tmp3 = 0
+				tmp4 = 0
+				//-----
+				/*--------
+				if(vkey2count > 0){
+					//tmpfull为错位全排列
+					tmpfull = calcPickHit(30 - k, firstCardCount - k)
+					//tmpfull为错位,同时有k1ke2的排列
+					tmpk1k2 = calcMixWithTwoKeyHit(30 - k, firstCardCount - k, vkey1count, vkey2count)
+					//错位,包含k1的,k2无视
+					tmpk1 = calcMixWithKeyHit(30 - k, firstCardCount - k, vkey1count)
+					//错位,包含k2的,k1无视
+					tmpk2 = calcMixWithKeyHit(30 - k, firstCardCount - k, vkey2count)
+					//-------------
+					//只拿到一个key,下一步寻找另一个key
+					//拿到k1,并且没有拿到k2的概率
+					tmp3 = (tmpk1 - tmpk1k2)/tmpfull
+					tmp4 = tmp4 + tmp3
+					calcNextStepSingle(tmp1*(tmp3), 30 - firstCardCount - k, vkey2count, curStep)
+					//拿到k2,并且没有拿到k1的概率
+					tmp3 = (tmpk2 - tmpk1k2)/tmpfull
+					tmp4 = tmp4 + tmp3
+					calcNextStepSingle(tmp1*(tmp3), 30 - firstCardCount - k, vkey1count, curStep)
+					//-------------
+					//拿到两个key
+					tmp2 = tmpk1k2/tmpfull
+					tmp4 = tmp4 + tmp2
+					hitRate = hitRate + tmp1 * tmp2
+					calcNextStepDouble(tmp1*(1 - tmp4), 30 - firstCardCount, vkey1count, vkey2count, curStep)
+				}else{
+					//tmpfull为错位全排列
+					tmpfull = calcPickHit(30 - k, firstCardCount - k)
+					//错位,包含k1的,k2无视
+					tmpk1 = calcMixWithKeyHit(30 - k, firstCardCount - k, vkey1count)
+					tmp2 = tmpk1/tmpfull
+					hitRate = hitRate + tmp1 * tmp2
+					calcNextStepSingle(tmp1*(1 - tmp2), 30 - firstCardCount, vkey1count, curStep)
+				}
+				--------*/
+				//-----
+				if(vkey2count > 0){
+					//拿到key1 x i, key2 x j的概率
+					for(i = 0; i < vkey1count + 1;i++){
+						for(j = 0; j < vkey2count + 1;j++){
+							if(j + i <= firstCardCount - k && 30 - firstCardCount - vkey1count - vkey2count >= firstCardCount - k - i - j){
+								//alert("k=" + k + " i=" + i + " j=" + j)
+								//|                           30 - firstCardCount                       |
+								//| key1Count | key2Count | 30 - firstCardCount - key1Count - key2Count |
+								//选
+								//|                         firstCardCount - k                          |
+								//|     i     |     j     |         firstCardCount - k - i - j          |
+								tmp3 = (calcCombination(vkey1count, i)*calcCombination(vkey2count, j)*calcCombination(30 - firstCardCount - vkey1count - vkey2count, firstCardCount - k - i - j))/calcCombination(30 - firstCardCount, firstCardCount - k)
+								if(i > 0 && j > 0){
+									tmp2 = tmp2 + tmp3
+									tmp4 = tmp4 + tmp3
+								}else if(i > 0){
+									tmp4 = tmp4 + tmp3
+									calcNextStepSingle(tmp1*(tmp3), 30 - firstCardCount, vkey2count, curStep)
+								}else if(j > 0){
+									tmp4 = tmp4 + tmp3
+									calcNextStepSingle(tmp1*(tmp3), 30 - firstCardCount, vkey1count, curStep)
+								}
+							}
+						}
+					}
+				}else{//只算key1
+					for(i = 1; i < Math.min(vkey1count, firstCardCount) + 1;i++){
+						if(i <= firstCardCount - k && 30 - firstCardCount - vkey1count >= firstCardCount - k - i){
+							//|                    30 - firstCardCount                  |
+							//| key1Count     |     30 - firstCardCount - key1Count     |
+							//选
+							//|                    firstCardCount - k                   |
+							//|       i       |           firstCardCount - k - i        |
+							tmp2 = tmp2 + (calcCombination(vkey1count, i)*calcCombination(30 - firstCardCount - vkey1count, firstCardCount - k - i))/calcCombination(30 - firstCardCount, firstCardCount - k)
+							//alert("k=" + k + " i=" + i + " j=" + j + " \ntmp1=" + tmp1 + " \ntmp2=" + tmp2 + " \nhitRate=" + hitRate)
+						}
+					}
+				}
+				hitRate = hitRate + tmp1*tmp2
+				if(vkey2count > 0){
+					calcNextStepDouble(tmp1*(1 - tmp4), 30 - firstCardCount, vkey1count, vkey2count, curStep)
+				}else{
+					calcNextStepSingle(tmp1*(1 - tmp2), 30 - firstCardCount, vkey1count, curStep)
+				}
+			}
+		}
+		//step3.换牌未出现KEY, 第一回合抓拍
+		firstCardCount = firstCardCount + 1//3变成4
+	}
+	hitRate = hitRate * (1/firstCardType)//如果firstCardType是2 则同时计算先后手,所有概率x50%(1/firstCardType)
+	document.getElementById('result1').value = getDoubleFloat(hitRate * 100)
+}
+function calcNextStepSingle(curStepRate, allCount, keyCount, cStep){//单KEY概率的
+	var tmp3 = new Number()
+	cStep++
+	selectCount = 1
+	if(cStep > dimStep){//cStep步大于给定步骤 则不继续进行计算
+		return
+	}else{//计算概率并计算下一步
+		tmp3 = -1
+		if(allCount <= 0 && isShowNull == 1){
+			alert("牌库已空!")
+			isShowNull = 0
+			//hitRate = 1*firstCardType
+			return
+		}
+		//allCount选selectCount, 未选中key的概率
+		if(keyCount > 0 && allCount - keyCount >= selectCount){
+			tmp3 = (calcCombination(keyCount, 0)*calcCombination(allCount - keyCount, selectCount))/calcCombination(allCount, selectCount)
+		}else{
+			if(allCount <= keyCount){
+				tmp3 = 0
+				//alert("allCount=" + allCount + " keyCount=" + keyCount + " selectCount=" + selectCount)
+			}
+		}
+		if(tmp3 < 1 && tmp3 > -1){//第3次已经算过了 不做处理 大于第3次要算上概率...
+			hitRate = hitRate + curStepRate*(1 - tmp3)
+			//alert("curStepRate=" + curStepRate + " \n allCount=" + allCount + " \nselectCount=" + 1 + "\nkeyCount=" + keyCount + "\ncStep=" + cStep)
+			//alert("curStepRate=" + curStepRate + "\ntmp3=" + tmp3)
+		}
+		nextStepRate = curStepRate*tmp3
+		if(nextStepRate > 0){
+			calcNextStepSingle(nextStepRate, allCount - selectCount, keyCount, cStep)
+		}
+		return
+	}
+}
+function calcNextStepDouble(curStepRate, allCount, key1count, key2count, cStep){//双KEY概率 key2count>0
+	cStep++
+	selectCount = 1
+	if(cStep > dimStep){//cStep步大于给定步骤 则不继续进行计算
+		return
+	}else{
+		//抽到key1 下一步求抽key2
+		tmp3 = 0
+		tmp3 = tmp3 + (calcCombination(key1count, selectCount)*calcCombination(allCount - key1count, 0))/calcCombination(allCount, selectCount)
+		calcNextStepSingle(curStepRate*tmp3, allCount - selectCount, key2count, cStep)
+		//抽到key2 下一步求抽key1
+		tmp4 = 0
+		tmp4 = tmp4 + (calcCombination(key2count, selectCount)*calcCombination(allCount - key2count, 0))/calcCombination(allCount, selectCount)
+		calcNextStepSingle(curStepRate*tmp4, allCount - selectCount, key1count, cStep)
+		//未抽到key  下一步求抽双key
+		tmp5 = 0
+		tmp5 = 1 - tmp3 - tmp4
+		calcNextStepDouble(curStepRate*tmp5, allCount - selectCount, vkey1count, vkey2count, cStep)
+	}
+}
+//错位排列相关
+//-----
+//全错位排列f(n)=f(n-2)+f(n-1)
+function calcFullArrange(count){
+	if(count == 1){
+		return 0
+	}else if(count == 2){
+		return 1
+	}else if(count == 3){
+		return 2
+	}else if(count <= 0){
+		alert("错误!")
+		return 0
+	}else{
+		return (count - 1) * (calcFullArrange(count - 1) + calcFullArrange(count - 2))
+	}
+}
+//换掉num张牌后再从total中抓上来有多少种错位排列.
+//total个信封装num个信
+function calcPickHit(total, num){//total = 5, num = 3
+	var i = new Number()
+	var j = new Number()
+	var k = new Number()
+	var r = new Number()
+	var s = new Number()
+	var t = new Number()
+	var retCount = new Number()
+	var markFixedCount = new Number()
+	var jComCount = new Number()
+	var markMaxLeftCount = new Number()
+	var jReturn = new Number()
+	var xLeftCount = new Number()
+	var xLeftArrayCount = new Number()
+	retCount = 0
+	
+	for(i = 0; i < num; i++){
+		markFixedCount = num - i //3, 2, 1	1~num 被标记ABC的 固定位置的数量
+		jComCount = C(num, markFixedCount) //ABC, AB,BC,AC, A,B,C的组合数
+		for(j = 0; j < jComCount; j++){//AB,BC,AC循环3次
+			markMaxLeftCount = num - markFixedCount //被标记ABC,剩余的数量0,1,2	0~num-1
+			jReturn = 1
+			if(markMaxLeftCount == 0){
+				retCount = retCount + jReturn
+			}else{
+				for(r = 0; r <= markMaxLeftCount; r++){//r=0, 1, 2   markMaxLeftCount==0走不进来
+					//|markFixedCount(A)|xLeftCount(?)|r(BC)|z
+					//|           num           |
+					//xLeftCount = num - markFixedCount - r = markMaxLeftCount - r
+					xLeftCount = num - markFixedCount - r
+					if(total - num < xLeftCount){//没有意义
+						continue
+					}
+					xLeftArrayCount = A(total - num, xLeftCount)//total - num而不是total - markFixedCount - r中,挑2个进行排列,EF中挑EF
+					
+					//r数量的标记剩余 放入 markMaxLeftCount个坑中的排列数
+					markLeftArrayCount = A(markMaxLeftCount, r)
+					
+					if(r == 0){
+						jReturn = xLeftArrayCount
+					}else{
+						jReturn = C(num - markFixedCount, r) * C(total - num, markMaxLeftCount - r) * (calcPickHit(markMaxLeftCount, r) * A(markMaxLeftCount - r, markMaxLeftCount - r)) //72
+					}
+					
+					retCount = retCount + jReturn
+				}
+			}
+		}	
+	}
+	return A(total, num) - retCount
+}
+//calcPickHit的基础上加入, key牌总数keynum
+//total总数 num错位的牌数 keynum total-num中有的key
+//|				num				|
+//|fix|		  leftCount			|
+//|fix|   r   |   key   |	x	|
+/*
+function calcPickKeyHit(total, num, keynum){//total = 5, num = 3
+	var i = new Number()
+	var j = new Number()
+	var k = new Number()
+	var r = new Number()
+	var s = new Number()
+	var t = new Number()
+	var retCount = new Number()
+	var markFixedCount = new Number()
+	var jComCount = new Number()
+	var markMaxLeftCount = new Number()
+	var jReturn = new Number()
+	var xLeftCount = new Number()
+	var xLeftArrayCount = new Number()
+	var kCount = new Number()
+	retCount = 0 //这个是带KEY,正(非错)位的排列数量
+	
+	for(i = 0; i < num; i++){
+		markFixedCount = num - i //3, 2, 1	1~num 被标记ABC的 固定位置的数量
+		jComCount = C(num, markFixedCount) //ABC, AB,BC,AC, A,B,C的组合数
+		for(j = 0; j < jComCount; j++){//AB,BC,AC循环3次
+			markMaxLeftCount = num - markFixedCount //被标记ABC,剩余的数量0,1,2	0~num-1
+			jReturn = 0
+			if(markMaxLeftCount == 0){
+				//retCount = retCount + 0//jReturn
+			}else{
+				retCount = retCount + calcMixWithKeyHit(total - markFixedCount, num - markFixedCount, keynum)
+				//console.log("add = " + calcMixWithKeyHit(total - markFixedCount, num - markFixedCount, keynum) + "; total = " + total + "; num = " + num + "; markFixedCount = " + markFixedCount + "; keynum = " + keynum)
+			}
+		}	
+	}
+	return calcKeyHit(total, num, keynum) - retCount
+}
+*/
+
+//total内含有K个Key, 计算从total中挑num个含有key的数量
+function calcKeyHit(total, num, k){
+	var i = new Number()
+	var kCount = new Number()
+	var retCount = 0
+	for(i = 0; i < num; i++){
+		kCount = num - i
+		if(kCount > k){
+			continue
+		}
+		retCount = retCount + C(k, kCount) * C(total - k, num - kCount) * A(num, num)
+	}
+	return retCount
+}
+
+//错位的, 带KEY的
+//total_cut = total - markFixedCount
+//num_cut = num - markFixedCount
+function calcMixWithKeyHit(total_cut, num_cut, keynum){
+	var i = new Number()
+	var k = new Number()
+	var retCount = new Number()
+	retCount = 0//带KEY, 非错位的
+	//|			num - fix		|
+	//| r |      x  	|	k   |
+	//R = num_cut
+	for(i = 0; i < num_cut; i++){
+		rCount = num_cut - i
+		if(rCount > num_cut){
+			continue
+		}
+		if(num_cut - rCount - 1 > 0 && num_cut - rCount > 0){
+			//console.log("total_cut = " + total_cut + "; num_cut = " + num_cut + "; keynum = " + keynum)
+			//console.log("before retCount = " + retCount + "; rCount = " + rCount + "; kCount = " + kCount)
+			retCount = retCount + C(num_cut, rCount) * (calcMixWithKeyHit(total_cut - rCount, num_cut - rCount, keynum))
+			//console.log("retCount = " + retCount + "; rCount = " + rCount + "; kCount = " + kCount)
+		}else{
+			for(k = 0; k < keynum; k++){
+				kCount = keynum - k
+				if(kCount > num_cut - rCount){
+					continue
+				}
+				if(total_cut - num_cut - keynum < 0){//total - num - keynum <= 0
+					continue
+				}
+				retCount = retCount + C(num_cut, rCount) * C(keynum, kCount) * C(total_cut - num_cut - keynum, num_cut - rCount - kCount) * A(num_cut - rCount, num_cut - rCount)
+			}
+		}
+	}
+	return calcKeyHit(total_cut, num_cut, keynum) - retCount
+}
+
+//total内含有k1个Key1, k2个key2, 计算从total中挑num个含有key的数量
+function calcTwoKeyHit(total, num, k1, k2){
+	var i = new Number()
+	var j = new Number()
+	var kCount1 = new Number()
+	var kCount2 = new Number()
+	var retCount = 0
+	for(i = 0; i < num; i++){
+		kCount1 = num - i
+		if(kCount1 > k1){
+			continue
+		}
+		for(j = 0; j < num - kCount1; j++){
+			kCount2 = num - kCount1 - j
+			if(kCount2 > k2){
+				continue
+			}
+			retCount = retCount + C(k1, kCount1) * C(k2, kCount2) * C(total - k1 - k2, num - kCount1 - kCount2) * A(num, num)
+		}
+	}
+	return retCount
+}
+
+//calcPickHit的基础上加入, key牌总数keynum
+//total总数 num错位的牌数 keynum total-num中有的key
+function calcMixWithTwoKeyHit(total_cut, num_cut, keynum1, keynum2){
+	var i = new Number()
+	var k1 = new Number()
+	var k2 = new Number()
+	var retCount = new Number()
+	retCount = 0//同时带KEY1KEY2, 非错位的
+	//|			num_cut		|
+	//|  r  |  x  | k1 | k2 |
+	
+	//|             total_cut           |
+	//|num_cut|     | keynum1 | keynum2 |
+	//R = num_cut
+	if(keynum1 > 0 && keynum2 > 0){//同时存在key1,key2的
+		for(i = 0; i < num_cut; i++){
+			rCount = num_cut - i
+			if(rCount > num_cut){
+				continue
+			}
+			if(num_cut - rCount - 2 > 0 && num_cut - rCount > 0){//至少有一个K1, 一个K2
+				retCount = retCount + C(num_cut, rCount) * (calcMixWithTwoKeyHit(total_cut - rCount, num_cut - rCount, keynum1, keynum2))
+			}else{
+					for(k1 = 0; k1 < keynum1; k1++){
+						kCount1 = keynum1 - k1
+						if(kCount1 > num_cut - rCount){
+							continue
+						}
+						if(total_cut - num_cut - keynum1 < 0){//total - num - keynum <= 0
+							continue
+						}
+						for(k2 = 0; k2 < keynum2; k2++){
+							kCount2 = keynum2 - k2
+							if(kCount2 > num_cut - rCount - kCount1){
+								continue
+							}
+							if(total_cut - num_cut - keynum1 - keynum2 < 0){//total - num - keynum <= 0
+								continue
+							}
+							retCount = retCount + C(num_cut, rCount) * C(keynum1, kCount1) * C(keynum2, kCount2) * C(total_cut - num_cut - keynum1 - keynum2, num_cut - rCount - kCount1 - kCount2) * A(num_cut - rCount, num_cut - rCount)
+						}
+					}
+				
+			}
+		}
+	}
+	//return calcKeyHit(total - markFixedCount, num - markFixedCount, keynum) - retCount
+	return calcTwoKeyHit(total_cut, num_cut, keynum1, keynum2) - retCount
+}
+
+//排列数
+function calcArrangement(total, num){
+	num = getInt(num)
+	if(num < 0){
+		num = 0
+	}
+	total = getInt(total)
+	var ret = calcFactorial(total)/(calcFactorial(total - num))
+	return getInt(ret)	
+}
+//组合数
+function calcCombination(total, num){
+	num = getInt(num)
+	if(num < 0){
+		num = 0
+	}
+	total = getInt(total)
+	var ret = calcFactorial(total)/(calcFactorial(total - num)*calcFactorial(num))
+	return getInt(ret)
+}
+function C(total, num){
+	return calcCombination(total, num)	
+}
+function A(total, num){
+	return calcArrangement(total, num)	
+}
+//算阶乘..小于1全算1
+function calcFactorial(num){
+	num = getInt(num)
+	if(num <= 1){
+		return 1;
+	}else{
+		return getInt(num * calcFactorial(num - 1))
+	}
+}
+function getDoubleFloat(num){
+	return Math.round(num * 100000000)/100000000
+}
+function getPercent(num){
+	return Math.round(num * 10000)/100
+}
+function getFloat(num){
+	return Math.round(num * 100)/100
+}
+function getInt(num){
+	return Math.round(num)
+}
+function getFix(num){
+	return Math.floor(num)
+}
+</script>
+</head>
+
+<body>
+
+<form>
+<h1>KEY牌抽取概率计算</h1>
+KEY牌1数量<input type="text" value=2 id="v_key_1_count" /> 例如:[治疗之环][成长]<br />
+KEY牌2数量<input type="text" value=2 id="v_key_2_count" /> 例如:[奥金尼灵魂祭司],如果只想算单KEY概率,KEY2设置为0<br />
+开局留牌的数量<input type="text" value=0 id="v_pass_card_count" /> 例如:[暗言术.痛],0表示全力找KEY牌<br />
+<select id="select_isFirst">
+  <option value=0>先手</option>
+  <option value=1 selected="selected">后手</option>
+  <option value=2>平均</option>
+</select><br />
+
+
+<select id="select_step">
+  <option value=1 selected="selected">起手</option>
+  <option value=2>换牌后</option>
+  <option value=3>第一次抽牌后(1费回合)</option>
+  <option value=4>第二次抽牌后(2费回合)</option>
+  <option value=5>第三次抽牌后(3费回合)</option>
+  <option value=6>第四次抽牌后(4费回合)</option>
+  <option value=7>第五次抽牌后(5费回合)</option>
+  <option value=8>第六次抽牌后(6费回合)</option>
+  <option value=9>第七次抽牌后(7费回合)</option>
+  <option value=10>第八次抽牌后(8费回合)</option>
+  <option value=11>第九次抽牌后(9费回合)</option>
+  <option value=12>第十次抽牌后(10费回合)</option>
+  <option value=13>第11次抽牌后(10费回合)</option>
+  <option value=14>第12次抽牌后(10费回合)</option>
+  <option value=15>第13次抽牌后(10费回合)</option>
+  <option value=16>第14次抽牌后(10费回合)</option>
+  <option value=17>第15次抽牌后(10费回合)</option>
+  <option value=18>第16次抽牌后(10费回合)</option>
+  <option value=19>第17次抽牌后(10费回合)</option>
+  <option value=20>第18次抽牌后(10费回合)</option>
+  <option value=21>第19次抽牌后(10费回合)</option>
+  <option value=22>第20次抽牌后(10费回合)</option>
+  <option value=23>第21次抽牌后(10费回合)</option>
+  <option value=24>第22次抽牌后(10费回合)</option>
+  <option value=25>第23次抽牌后(10费回合)</option>
+  <option value=26>第24次抽牌后(10费回合)</option>
+  <option value=27>第25次抽牌后(10费回合)</option>
+  <option value=28>第26次抽牌后(10费回合)</option>
+  <option value=29>第27次抽牌后(10费回合)</option><!---->
+</select>拿到KEY的几率<input type="text" value=0 id="result1" />%<br />
+<br/>
+<input type="button" value="计算概率" onClick="calc_hit()" id="btn_calc_hit" /><br />
+</form>
+
+</body>
+
+</html>
